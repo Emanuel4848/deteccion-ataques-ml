@@ -12,7 +12,9 @@ scaler = joblib.load("modelo/scaler.pkl")
 @app.route("/", methods=["GET", "POST"])
 def index():
     resultado = None
-    tipo = None 
+    tipo = None
+    probabilidad = 0
+    explicacion_texto = ""
 
     if request.method == "POST":
         duration = float(request.form["duration"])
@@ -29,6 +31,7 @@ def index():
         pred = model.predict(data_scaled)
         prob = pred[0][0]
 
+        # clasificación
         if prob > 0.4:
             resultado = f"🚨 ATAQUE DETECTADO ({prob*100:.2f}%)"
             tipo = "ataque"
@@ -36,8 +39,32 @@ def index():
             resultado = f"✅ TRÁFICO NORMAL ({(1-prob)*100:.2f}%)"
             tipo = "normal"
 
-    probabilidad = prob * 100 if resultado else 0
-    return render_template("index.html", resultado=resultado, tipo=tipo, prob=probabilidad)
+        probabilidad = prob * 100
+
+        # 🔥 EXPLICACIÓN (lo nuevo)
+        explicacion = []
+
+        if count > 100:
+            explicacion.append("Muchos intentos en poco tiempo")
+
+        if src_bytes < 50:
+            explicacion.append("Bajo envío de datos (posible escaneo)")
+
+        if duration == 0:
+            explicacion.append("Conexión muy corta")
+
+        if len(explicacion) == 0:
+            explicacion.append("Comportamiento normal")
+
+        explicacion_texto = " | ".join(explicacion)
+
+    return render_template(
+        "index.html",
+        resultado=resultado,
+        tipo=tipo,
+        prob=probabilidad,
+        explicacion=explicacion_texto
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)

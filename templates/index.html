@@ -45,7 +45,6 @@
             color: #111827;
         }
 
-        /* VARIABLES */
         .var-card {
             display: flex;
             align-items: center;
@@ -68,7 +67,6 @@
             color: #6b7280;
         }
 
-        /* INPUTS */
         .input-group {
             display: flex;
             align-items: center;
@@ -133,7 +131,13 @@
             border: 1px solid #16a34a;
         }
 
-        /* KPI */
+        .extra {
+            text-align: center;
+            font-size: 13px;
+            margin-top: 8px;
+            color: #6b7280;
+        }
+
         .kpi {
             display: flex;
             gap: 10px;
@@ -158,13 +162,8 @@
             font-size: 13px;
         }
 
-        .red {
-            background: #ef4444;
-        }
-
-        .green {
-            background: #22c55e;
-        }
+        .red { background: #ef4444; }
+        .green { background: #22c55e; }
 
         .total {
             margin-top: 10px;
@@ -197,56 +196,19 @@
 
     <!-- IZQUIERDA -->
     <div class="panel">
-
         <h3>Variables</h3>
 
-        <div class="var-card">
-            ⏱️
-            <div>
-                <b>Duración</b>
-                <p>Tiempo de conexión en segundos</p>
-            </div>
-        </div>
-
-        <div class="var-card">
-            🌐
-            <div>
-                <b>Protocolo</b>
-                <p>TCP, UDP o ICMP</p>
-            </div>
-        </div>
-
-        <div class="var-card">
-            📤
-            <div>
-                <b>Bytes enviados</b>
-                <p>Datos enviados por el cliente</p>
-            </div>
-        </div>
-
-        <div class="var-card">
-            📥
-            <div>
-                <b>Bytes recibidos</b>
-                <p>Respuesta del servidor</p>
-            </div>
-        </div>
-
-        <div class="var-card">
-            🔁
-            <div>
-                <b>Intentos</b>
-                <p>Conexiones recientes</p>
-            </div>
-        </div>
-
+        <div class="var-card">⏱️ <div><b>Duración</b><p>Tiempo de conexión</p></div></div>
+        <div class="var-card">🌐 <div><b>Protocolo</b><p>TCP, UDP o ICMP</p></div></div>
+        <div class="var-card">📤 <div><b>Bytes enviados</b><p>Datos enviados</p></div></div>
+        <div class="var-card">📥 <div><b>Bytes recibidos</b><p>Datos recibidos</p></div></div>
+        <div class="var-card">🔁 <div><b>Intentos</b><p>Conexiones recientes</p></div></div>
     </div>
 
     <!-- CENTRO -->
     <div class="panel">
 
         <form method="POST">
-
             <div class="input-group">
                 <input type="number" name="duration" placeholder="Duración" min="0" required>
                 <span class="unit">s</span>
@@ -272,16 +234,24 @@
             <input type="number" name="count" placeholder="Intentos" min="0" required>
 
             <button type="submit">Analizar</button>
-
         </form>
 
         {% if resultado %}
             <div class="resultado {{ tipo }}">
                 {{ resultado }}
             </div>
+
+            <div class="extra">
+                Probabilidad de ataque: <b>{{ prob | round(2) }}%</b>
+            </div>
+
+            <div class="extra">
+                {{ explicacion }}
+            </div>
         {% endif %}
 
         <canvas id="grafica"></canvas>
+        <canvas id="grafica_linea"></canvas>
 
     </div>
 
@@ -321,54 +291,73 @@
 </div>
 
 <script>
-    let ataques = parseInt(localStorage.getItem("ataques") || 0);
-    let normales = parseInt(localStorage.getItem("normales") || 0);
+let ataques = parseInt(localStorage.getItem("ataques") || 0);
+let normales = parseInt(localStorage.getItem("normales") || 0);
 
-    let tipo = "{{ tipo | default('', true) }}";
+let tipo = "{{ tipo | default('', true) }}";
+let probabilidad = {{ prob | default(0) }};
 
-    if (tipo === "ataque" || tipo === "normal") {
+let historial = JSON.parse(localStorage.getItem("historial") || "[]");
 
-        let now = new Date().toLocaleTimeString();
+if (tipo === "ataque" || tipo === "normal") {
 
-        if (tipo === "ataque") {
-            ataques++;
-            localStorage.setItem("ataques", ataques);
+    let now = new Date().toLocaleTimeString();
 
-            document.getElementById("recomendacion").innerText =
-                "⚠️ Posible ataque detectado.";
+    historial.push(probabilidad);
+    localStorage.setItem("historial", JSON.stringify(historial));
 
-            agregarLog(now + " - ATAQUE");
+    if (tipo === "ataque") {
+        ataques++;
+        localStorage.setItem("ataques", ataques);
 
-        } else {
-            normales++;
-            localStorage.setItem("normales", normales);
+        document.getElementById("recomendacion").innerText =
+            "⚠️ Posible ataque detectado.";
 
-            document.getElementById("recomendacion").innerText =
-                "✔️ Tráfico normal";
+        agregarLog(now + " - ATAQUE");
 
-            agregarLog(now + " - normal");
-        }
+    } else {
+        normales++;
+        localStorage.setItem("normales", normales);
+
+        document.getElementById("recomendacion").innerText =
+            "✔️ Tráfico normal";
+
+        agregarLog(now + " - normal");
     }
+}
 
-    document.getElementById("ataques").innerText = ataques;
-    document.getElementById("normales").innerText = normales;
-    document.getElementById("total").innerText = ataques + normales;
+document.getElementById("ataques").innerText = ataques;
+document.getElementById("normales").innerText = normales;
+document.getElementById("total").innerText = ataques + normales;
 
-    function agregarLog(texto) {
-        let log = document.getElementById("log");
-        log.innerHTML = "<p>" + texto + "</p>" + log.innerHTML;
+function agregarLog(texto) {
+    let log = document.getElementById("log");
+    log.innerHTML = "<p>" + texto + "</p>" + log.innerHTML;
+}
+
+new Chart(document.getElementById('grafica'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Ataques', 'Normal'],
+        datasets: [{
+            data: [ataques, normales],
+            backgroundColor: ['#dc2626', '#16a34a']
+        }]
     }
+});
 
-    new Chart(document.getElementById('grafica'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Ataques', 'Normal'],
-            datasets: [{
-                data: [ataques, normales],
-                backgroundColor: ['#dc2626', '#16a34a']
-            }]
-        }
-    });
+new Chart(document.getElementById('grafica_linea'), {
+    type: 'line',
+    data: {
+        labels: historial.map((_, i) => i + 1),
+        datasets: [{
+            label: 'Probabilidad de ataque (%)',
+            data: historial,
+            borderColor: '#3b82f6',
+            fill: false
+        }]
+    }
+});
 </script>
 
 </body>
