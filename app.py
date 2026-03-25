@@ -15,6 +15,7 @@ def index():
     tipo = None
     probabilidad = 0
     explicacion_texto = ""
+    datos = None  
 
     if request.method == "POST":
         duration = float(request.form["duration"])
@@ -22,6 +23,15 @@ def index():
         src_bytes = float(request.form["src_bytes"])
         dst_bytes = float(request.form["dst_bytes"])
         count = float(request.form["count"])
+
+        #datos para el frontend
+        datos = {
+            "duration": duration,
+            "protocol": protocol,
+            "src_bytes": src_bytes,
+            "dst_bytes": dst_bytes,
+            "count": count
+        }
 
         data = np.array([[duration, protocol, src_bytes, dst_bytes, count]])
 
@@ -41,7 +51,7 @@ def index():
 
         probabilidad = prob * 100
 
-        # 🔥 EXPLICACIÓN (lo nuevo)
+        #resultado
         explicacion = []
 
         if count > 100:
@@ -63,7 +73,8 @@ def index():
         resultado=resultado,
         tipo=tipo,
         prob=probabilidad,
-        explicacion=explicacion_texto
+        explicacion=explicacion_texto,
+        datos=datos 
     )
 
 if __name__ == "__main__":

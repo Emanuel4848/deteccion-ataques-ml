@@ -194,10 +194,8 @@
 
 <div class="main">
 
-    <!-- IZQUIERDA -->
     <div class="panel">
         <h3>Variables</h3>
-
         <div class="var-card">⏱️ <div><b>Duración</b><p>Tiempo de conexión</p></div></div>
         <div class="var-card">🌐 <div><b>Protocolo</b><p>TCP, UDP o ICMP</p></div></div>
         <div class="var-card">📤 <div><b>Bytes enviados</b><p>Datos enviados</p></div></div>
@@ -205,7 +203,6 @@
         <div class="var-card">🔁 <div><b>Intentos</b><p>Conexiones recientes</p></div></div>
     </div>
 
-    <!-- CENTRO -->
     <div class="panel">
 
         <form method="POST">
@@ -250,12 +247,11 @@
             </div>
         {% endif %}
 
-        <canvas id="grafica"></canvas>
         <canvas id="grafica_linea"></canvas>
+        <canvas id="grafica"></canvas>
 
     </div>
 
-    <!-- DERECHA -->
     <div class="panel">
 
         <h3>Estado del sistema</h3>
@@ -278,11 +274,6 @@
 
         <hr>
 
-        <h3>Recomendación</h3>
-        <p id="recomendacion">Esperando análisis...</p>
-
-        <hr>
-
         <h3>Eventos</h3>
         <div id="log" class="log"></div>
 
@@ -293,6 +284,7 @@
 <script>
 let ataques = parseInt(localStorage.getItem("ataques") || 0);
 let normales = parseInt(localStorage.getItem("normales") || 0);
+let eventos = JSON.parse(localStorage.getItem("eventos") || "[]");
 
 let tipo = "{{ tipo | default('', true) }}";
 let probabilidad = {{ prob | default(0) }};
@@ -303,6 +295,14 @@ if (tipo === "ataque" || tipo === "normal") {
 
     let now = new Date().toLocaleTimeString();
 
+    let duration = "{{ datos.duration if datos else '' }}";
+    let protocol = "{{ datos.protocol if datos else '' }}";
+    let src = "{{ datos.src_bytes if datos else '' }}";
+    let dst = "{{ datos.dst_bytes if datos else '' }}";
+    let count = "{{ datos.count if datos else '' }}";
+
+    let protoText = protocol == "0" ? "TCP" : protocol == "1" ? "UDP" : "ICMP";
+
     historial.push(probabilidad);
     localStorage.setItem("historial", JSON.stringify(historial));
 
@@ -310,19 +310,21 @@ if (tipo === "ataque" || tipo === "normal") {
         ataques++;
         localStorage.setItem("ataques", ataques);
 
-        document.getElementById("recomendacion").innerText =
-            "⚠️ Posible ataque detectado.";
-
-        agregarLog(now + " - ATAQUE");
+        guardarEvento(
+            now + " - ATAQUE (" + probabilidad.toFixed(2) + "%)" +
+            " | [d=" + duration + ", proto=" + protoText +
+            ", src=" + src + ", dst=" + dst + ", count=" + count + "]"
+        );
 
     } else {
         normales++;
         localStorage.setItem("normales", normales);
 
-        document.getElementById("recomendacion").innerText =
-            "✔️ Tráfico normal";
-
-        agregarLog(now + " - normal");
+        guardarEvento(
+            now + " - NORMAL (" + probabilidad.toFixed(2) + "%)" +
+            " | [d=" + duration + ", proto=" + protoText +
+            ", src=" + src + ", dst=" + dst + ", count=" + count + "]"
+        );
     }
 }
 
@@ -330,10 +332,22 @@ document.getElementById("ataques").innerText = ataques;
 document.getElementById("normales").innerText = normales;
 document.getElementById("total").innerText = ataques + normales;
 
-function agregarLog(texto) {
-    let log = document.getElementById("log");
-    log.innerHTML = "<p>" + texto + "</p>" + log.innerHTML;
+function guardarEvento(texto) {
+    eventos.unshift(texto);
+    if (eventos.length > 20) eventos.pop();
+    localStorage.setItem("eventos", JSON.stringify(eventos));
+    renderLogs();
 }
+
+function renderLogs() {
+    let log = document.getElementById("log");
+    log.innerHTML = "";
+    eventos.forEach(e => {
+        log.innerHTML += "<p>" + e + "</p>";
+    });
+}
+
+renderLogs();
 
 new Chart(document.getElementById('grafica'), {
     type: 'doughnut',
