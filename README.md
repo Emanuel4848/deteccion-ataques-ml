@@ -1,3 +1,5 @@
+ESTE ARCHIVO ES PARA SABER EL CONTEXTO EN MI GITHUB
+
 # Sistema de Detección de Intrusiones con Redes Neuronales
 
 Este proyecto consiste en un modelo de machine learning diseñado para detectar posibles intrusiones en una red utilizando una red neuronal.
